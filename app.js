@@ -1,7 +1,7 @@
 /* Exec Comms — App Logic */
-const { useState } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
-const STORE="ec3d";const SSET="ec3s";const AUTH="ec3a";
+const STORE="ec3d";const SSET="ec3s";
 const DO={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4};
 function ld(k,f){try{const r=localStorage.getItem(k);return r?JSON.parse(r):f;}catch{return f;}}
 function sv(k,v){localStorage.setItem(k,JSON.stringify(v));}
@@ -9,6 +9,23 @@ function sid(s){return`w${s.w}-${s.d}`;}
 function gsd(data,s){return data[sid(s)]||{status:"todo",pf:null,notes:"",date:""};}
 
 const TM={reading:{l:"Read",c:"var(--c-read)"},writing:{l:"Write",c:"var(--c-write)"},practice:{l:"Practice",c:"var(--c-prac)"},analysis:{l:"Analyze",c:"var(--c-anal)"}};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FIREBASE — same project as Michelin app, separate collection
+   ═══════════════════════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBlcISl4wv6AMYE2RsdUTweRGv-ZcRCDsw",
+  authDomain: "executive-comms.firebaseapp.com",
+  projectId: "executive-comms",
+  storageBucket: "executive-comms.firebasestorage.app",
+  messagingSenderId: "661873899795",
+  appId: "1:661873899795:web:406329259e229c3eaec2e6"
+};
+
+// Firebase compat SDK is loaded via script tags in index.html
+const firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+const fbAuth = firebase.auth();
+const fbDb = firebase.firestore();
 
 /* ═══════════════════════════════════════════════════════════════════════════
    STYLES — injected as a style tag for the editorial design system
@@ -61,7 +78,13 @@ body { background:var(--bg); color:var(--text); font-family:var(--mono); font-si
 /* ═══════════════════════════════════════════════════════════════════════════
    LOGIN
    ═══════════════════════════════════════════════════════════════════════════ */
-function Login({onIn}) {
+function Login({onGoogle,onDemo}) {
+  const [busy,setBusy] = useState(false);
+  async function google(){
+    setBusy(true);
+    try { await onGoogle(); } catch(e){ console.error(e); }
+    setBusy(false);
+  }
   return (
     <div style={{minHeight:"100dvh",background:"#F0EDE6",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,fontFamily:"var(--mono)"}}>
       <style>{CSS}</style>
@@ -70,11 +93,11 @@ function Login({onIn}) {
         <div style={{width:48,height:1,background:"#1A1A18",margin:"16px auto"}}/>
         <p style={{fontFamily:"var(--mono)",fontSize:11,color:"#6B6960",letterSpacing:"0.08em",textTransform:"uppercase"}}>10 Weeks · 50 Sessions</p>
       </div>
-      <button onClick={()=>onIn("g")} style={{width:"100%",maxWidth:300,padding:"14px 20px",borderRadius:0,background:"#1A1A18",border:"none",cursor:"pointer",fontFamily:"var(--mono)",fontSize:12,fontWeight:500,color:"#F0EDE6",letterSpacing:"0.04em",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+      <button onClick={google} disabled={busy} style={{width:"100%",maxWidth:300,padding:"14px 20px",borderRadius:0,background:"#1A1A18",border:"none",cursor:"pointer",fontFamily:"var(--mono)",fontSize:12,fontWeight:500,color:"#F0EDE6",letterSpacing:"0.04em",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:10,opacity:busy?0.5:1}}>
         <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Sign in with Google
+        {busy ? "Signing in…" : "Sign in with Google"}
       </button>
-      <button onClick={()=>onIn("d")} style={{width:"100%",maxWidth:300,padding:"14px 20px",borderRadius:0,background:"transparent",border:"1px solid #D4D0C8",cursor:"pointer",fontFamily:"var(--mono)",fontSize:12,color:"#6B6960",letterSpacing:"0.04em"}}>
+      <button onClick={onDemo} style={{width:"100%",maxWidth:300,padding:"14px 20px",borderRadius:0,background:"transparent",border:"1px solid #D4D0C8",cursor:"pointer",fontFamily:"var(--mono)",fontSize:12,color:"#6B6960",letterSpacing:"0.04em"}}>
         Demo — no account
       </button>
     </div>
@@ -113,13 +136,13 @@ function CurrentTab({data,setData}){
   const nextTodoIdx = S.findIndex(s=>gsd(data,s).status==="todo");
   const allDone = nextTodoIdx === -1;
 
-  function upd(f,v){const n={...data,[sid(session)]:{...sd,[f]:v}};setData(n);sv(STORE,n);}
+  function upd(f,v){const n={...data,[sid(session)]:{...sd,[f]:v}};setData(n);}
 
   function completeAndNext(){
     // If not yet marked, mark as done
     if(sd.status==="todo"){
       const n={...data,[sid(session)]:{...sd,status:"done"}};
-      setData(n);sv(STORE,n);
+      setData(n);
     }
     // Move to next todo
     const nxt = S.findIndex((s,i) => i > viewIdx && gsd(data,s).status==="todo");
@@ -400,7 +423,7 @@ function SessionsTab({data,onSelect}){
    ═══════════════════════════════════════════════════════════════════════════ */
 function Detail({session:s,data,setData,onBack}){
   const sd=gsd(data,s);
-  function upd(f,v){const n={...data,[sid(s)]:{...sd,[f]:v}};setData(n);sv(STORE,n);}
+  function upd(f,v){const n={...data,[sid(s)]:{...sd,[f]:v}};setData(n);}
   return(
     <div style={{minHeight:"100dvh",background:"var(--bg)",color:"var(--text)"}}>
       <div style={{position:"sticky",top:0,zIndex:10,background:"var(--bg)",borderBottom:"1px solid var(--rule)",padding:"12px 20px"}}>
@@ -455,10 +478,34 @@ function Detail({session:s,data,setData,onBack}){
 /* ═══════════════════════════════════════════════════════════════════════════
    SETTINGS TAB
    ═══════════════════════════════════════════════════════════════════════════ */
-function SettingsTab({settings:st,setSt,data,setData,onOut}){
+function SettingsTab({settings:st,setSt,data,setData,onOut,user,syncStatus}){
   function us(k,v){const n={...st,[k]:v};setSt(n);sv(SSET,n);}
   return(
     <div style={{padding:"24px 20px 120px"}}>
+      {/* Account info */}
+      {user && !user.demo && (
+        <div style={{marginBottom:24}}>
+          <div style={{fontFamily:"var(--mono)",fontSize:"calc(var(--fs)*0.6)",color:"var(--muted)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:12}}>Account</div>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:"1px solid var(--rule)"}}>
+            {user.photoURL && <img src={user.photoURL} style={{width:28,height:28,borderRadius:"50%"}} referrerPolicy="no-referrer"/>}
+            <div>
+              <div style={{fontSize:"calc(var(--fs)*0.85)",color:"var(--text)",fontWeight:500}}>{user.displayName}</div>
+              <div style={{fontSize:"calc(var(--fs)*0.65)",color:"var(--muted)"}}>{user.email}</div>
+            </div>
+          </div>
+          <div style={{fontSize:"calc(var(--fs)*0.65)",color:"var(--muted)",marginTop:8}}>
+            Sync: {syncStatus==='ok'?'✓ Synced':syncStatus==='saving'?'Saving…':'✗ Error'}
+            {!user.demo && <span> · Data syncs across all devices</span>}
+          </div>
+        </div>
+      )}
+      {user && user.demo && (
+        <div style={{marginBottom:24,padding:"12px 0",borderBottom:"1px solid var(--rule)"}}>
+          <div style={{fontFamily:"var(--mono)",fontSize:"calc(var(--fs)*0.6)",color:"var(--muted)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8}}>Demo Mode</div>
+          <div style={{fontSize:"calc(var(--fs)*0.7)",color:"var(--soft)"}}>Data is saved locally only. Sign in with Google to sync across devices.</div>
+        </div>
+      )}
+
       <div style={{fontFamily:"var(--mono)",fontSize:"calc(var(--fs)*0.6)",color:"var(--muted)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:20}}>Appearance</div>
 
       <div style={{marginBottom:24}}>
@@ -484,10 +531,10 @@ function SettingsTab({settings:st,setSt,data,setData,onOut}){
         <button onClick={()=>{const b=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="exec-comms.json";a.click();}} style={{flex:1,padding:"12px",fontSize:"calc(var(--fs)*0.75)",fontFamily:"var(--mono)",fontWeight:500,background:"transparent",border:"1px solid var(--rule)",color:"var(--text)",cursor:"pointer",borderRadius:2}}>Export</button>
         <label style={{flex:1,padding:"12px",fontSize:"calc(var(--fs)*0.75)",fontFamily:"var(--mono)",fontWeight:500,textAlign:"center",background:"transparent",border:"1px solid var(--rule)",color:"var(--soft)",cursor:"pointer",borderRadius:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
           Import
-          <input type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);setData(d);sv(STORE,d);}catch{alert("Invalid");}};r.readAsText(f);}}/>
+          <input type="file" accept=".json" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);setData(d);}catch{alert("Invalid");}};r.readAsText(f);}}/>
         </label>
       </div>
-      <button onClick={()=>{if(confirm("Alle Daten löschen?")){setData({});sv(STORE,{});}}} style={{width:"100%",padding:"12px",fontSize:"calc(var(--fs)*0.75)",fontFamily:"var(--mono)",fontWeight:500,background:"transparent",border:"1px solid var(--c-prac)",color:"var(--c-prac)",cursor:"pointer",borderRadius:2}}>Reset</button>
+      <button onClick={()=>{if(confirm("Alle Daten löschen?")){setData({});}}} style={{width:"100%",padding:"12px",fontSize:"calc(var(--fs)*0.75)",fontFamily:"var(--mono)",fontWeight:500,background:"transparent",border:"1px solid var(--c-prac)",color:"var(--c-prac)",cursor:"pointer",borderRadius:2}}>Reset</button>
 
       <Rule style={{marginTop:24}}/>
       <button onClick={onOut} style={{width:"100%",padding:"12px",marginTop:24,fontSize:"calc(var(--fs)*0.75)",fontFamily:"var(--mono)",fontWeight:500,background:"transparent",border:"1px solid var(--rule)",color:"var(--muted)",cursor:"pointer",borderRadius:2}}>Sign Out</button>
@@ -527,13 +574,133 @@ function Nav({tab,set}){
    APP
    ═══════════════════════════════════════════════════════════════════════════ */
 function App(){
-  const [authed,setAuthed]=useState(()=>ld(AUTH,false));
+  const [user,setUser]=useState(null);       // Firebase user or {demo:true}
+  const [loading,setLoading]=useState(true);  // waiting for auth check
   const [data,setData]=useState(()=>ld(STORE,{}));
   const [st,setSt]=useState(()=>ld(SSET,{mode:"light",fontSize:15}));
   const [tab,setTab]=useState("current");
   const [sel,setSel]=useState(null);
+  const [syncStatus,setSyncStatus]=useState("ok"); // ok | saving | error
+  const saveTimer=useRef(null);
+  const unsubSnap=useRef(null);
+  const notesActive=useRef(false);
 
-  if(!authed) return <Login onIn={()=>{setAuthed(true);sv(AUTH,true);}}/>;
+  // --- Firestore doc ref ---
+  function userDocRef(){
+    return fbDb.collection("execcomms-users").doc(user.uid);
+  }
+
+  // --- Save to Firestore (debounced) ---
+  const saveToFirestore = useCallback(async (d) => {
+    if (!user || user.demo) return;
+    setSyncStatus('saving');
+    try {
+      await userDocRef().set({
+        sessionData: d,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      setSyncStatus('ok');
+    } catch(e) {
+      console.error('Save error:', e);
+      setSyncStatus('error');
+    }
+  }, [user]);
+
+  function persistData(d) {
+    setData(d);
+    if (user && user.demo) {
+      // Demo mode: save to localStorage
+      sv(STORE, d);
+    } else if (user) {
+      // Authenticated: debounced Firestore save
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => saveToFirestore(d), 800);
+    }
+  }
+
+  // --- Listen to Firestore (real-time sync) ---
+  function listenToFirestore() {
+    if (unsubSnap.current) unsubSnap.current();
+    unsubSnap.current = userDocRef().onSnapshot((snap) => {
+      if (snap.exists) {
+        const d = snap.data();
+        const incoming = JSON.stringify(d.sessionData || {});
+        const current = JSON.stringify(data);
+        if (incoming !== current) {
+          const newData = d.sessionData || {};
+          setData(newData);
+          setSyncStatus('ok');
+        }
+      }
+    }, (err) => {
+      console.error('Snapshot error:', err);
+      setSyncStatus('error');
+    });
+  }
+
+  // --- Boot: auth listener ---
+  useEffect(() => {
+    const unsub = fbAuth.onAuthStateChanged((u) => {
+      if (u) {
+        setUser(u);
+        setLoading(false);
+      } else {
+        setUser(null);
+        setLoading(false);
+        if (unsubSnap.current) unsubSnap.current();
+      }
+    });
+    return () => { unsub(); if (unsubSnap.current) unsubSnap.current(); };
+  }, []);
+
+  // --- Start Firestore listener when user logs in ---
+  useEffect(() => {
+    if (user && !user.demo) {
+      listenToFirestore();
+    }
+  }, [user]);
+
+  // --- Google sign-in ---
+  async function handleGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      await fbAuth.signInWithPopup(provider);
+    } catch(e) {
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+        await fbAuth.signInWithRedirect(provider);
+      } else { throw e; }
+    }
+  }
+
+  // --- Demo mode ---
+  function handleDemo() {
+    const saved = ld(STORE, {});
+    setUser({ demo: true, uid: 'demo', displayName: 'Demo' });
+    setData(saved);
+    setLoading(false);
+  }
+
+  // --- Sign out ---
+  function handleSignOut() {
+    if (unsubSnap.current) unsubSnap.current();
+    if (user && !user.demo) {
+      fbAuth.signOut();
+    }
+    setUser(null);
+    setData({});
+    setSyncStatus('ok');
+  }
+
+  // --- Loading screen ---
+  if(loading) return(
+    <div style={{minHeight:"100dvh",background:"#F0EDE6",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <style>{CSS}</style>
+      <div style={{fontFamily:"var(--mono)",fontSize:12,color:"#6B6960",letterSpacing:"0.08em",textTransform:"uppercase"}}>Loading…</div>
+    </div>
+  );
+
+  // --- Login screen ---
+  if(!user) return <Login onGoogle={handleGoogle} onDemo={handleDemo}/>;
 
   const theme=st.mode||"light";
 
@@ -541,7 +708,7 @@ function App(){
     <div data-theme={theme}>
       <style>{CSS}</style>
       <div style={{background:"var(--bg)",color:"var(--text)",fontFamily:"var(--mono)",maxWidth:480,margin:"0 auto","--fs":`${st.fontSize}px`}}>
-        <Detail session={sel} data={data} setData={setData} onBack={()=>setSel(null)}/>
+        <Detail session={sel} data={data} setData={persistData} onBack={()=>setSel(null)}/>
       </div>
     </div>
   );
@@ -552,13 +719,14 @@ function App(){
     <div data-theme={theme} style={{"--fs":`${st.fontSize}px`}}>
       <style>{CSS}</style>
       <div style={{minHeight:"100dvh",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--mono)",maxWidth:480,margin:"0 auto"}}>
-        <div style={{padding:"16px 20px 12px",borderBottom:"1px solid var(--rule)",position:"sticky",top:0,zIndex:50,background:"var(--bg)"}}>
+        <div style={{padding:"16px 20px 12px",borderBottom:"1px solid var(--rule)",position:"sticky",top:0,zIndex:50,background:"var(--bg)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <h1 style={{fontFamily:tab==="home"?"var(--serif)":"var(--mono)",fontSize:tab==="home"?"calc(var(--fs)*1.8)":"calc(var(--fs)*0.7)",fontWeight:tab==="home"?900:500,letterSpacing:tab==="home"?"-0.03em":"0.1em",textTransform:tab==="home"?"none":"uppercase",color:"var(--text)",margin:0}}>{titles[tab]}</h1>
+          {!user.demo && <span style={{fontFamily:"var(--mono)",fontSize:"calc(var(--fs)*0.55)",letterSpacing:"0.06em",textTransform:"uppercase",color:syncStatus==='saving'?"var(--muted)":syncStatus==='error'?"var(--c-red)":"var(--muted)",opacity:syncStatus==='ok'?0.4:1,transition:"opacity 0.3s"}}>{syncStatus==='ok'?'Synced':syncStatus==='saving'?'Saving…':'Error!'}</span>}
         </div>
         {tab==="home"&&<HomeTab data={data}/>}
-        {tab==="current"&&<CurrentTab data={data} setData={setData}/>}
+        {tab==="current"&&<CurrentTab data={data} setData={persistData}/>}
         {tab==="sessions"&&<SessionsTab data={data} onSelect={setSel}/>}
-        {tab==="settings"&&<SettingsTab settings={st} setSt={setSt} data={data} setData={setData} onOut={()=>{setAuthed(false);sv(AUTH,false);}}/>}
+        {tab==="settings"&&<SettingsTab settings={st} setSt={setSt} data={data} setData={persistData} onOut={handleSignOut} user={user} syncStatus={syncStatus}/>}
         <Nav tab={tab} set={setTab}/>
       </div>
     </div>

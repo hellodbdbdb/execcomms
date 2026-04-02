@@ -19,6 +19,11 @@
   <!-- Babel standalone so JSX works directly in the browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <!-- Firebase SDKs (loaded as compat to avoid dynamic import issues with Babel) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
   <!-- Data (sessions, phases) -->
   <script src="data.js"></script>
 
