@@ -592,27 +592,28 @@ function App(){
 
   // --- Save to Firestore (debounced) ---
   const saveToFirestore = useCallback(async (d) => {
-    if (!user || user.demo) return;
+    if (!user || user.demo) { console.log('[SYNC] skip: no user or demo'); return; }
+    console.log('[SYNC] saving to Firestore…', user.uid);
     setSyncStatus('saving');
     try {
       await userDocRef().set({
         sessionData: d,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
+      console.log('[SYNC] saved OK');
       setSyncStatus('ok');
     } catch(e) {
-      console.error('Save error:', e);
+      console.error('[SYNC] save FAILED:', e);
       setSyncStatus('error');
     }
   }, [user]);
 
   function persistData(d) {
     setData(d);
+    console.log('[SYNC] persistData called, user:', user ? (user.demo ? 'demo' : user.uid) : 'null');
     if (user && user.demo) {
-      // Demo mode: save to localStorage
       sv(STORE, d);
     } else if (user) {
-      // Authenticated: debounced Firestore save
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => saveToFirestore(d), 800);
     }
@@ -621,19 +622,17 @@ function App(){
   // --- Listen to Firestore (real-time sync) ---
   function listenToFirestore() {
     if (unsubSnap.current) unsubSnap.current();
+    console.log('[SYNC] listening to Firestore for', user.uid);
     unsubSnap.current = userDocRef().onSnapshot((snap) => {
+      console.log('[SYNC] snapshot received, exists:', snap.exists);
       if (snap.exists) {
         const d = snap.data();
-        const incoming = JSON.stringify(d.sessionData || {});
-        const current = JSON.stringify(data);
-        if (incoming !== current) {
-          const newData = d.sessionData || {};
-          setData(newData);
-          setSyncStatus('ok');
-        }
+        const newData = d.sessionData || {};
+        setData(newData);
+        setSyncStatus('ok');
       }
     }, (err) => {
-      console.error('Snapshot error:', err);
+      console.error('[SYNC] snapshot error:', err);
       setSyncStatus('error');
     });
   }
