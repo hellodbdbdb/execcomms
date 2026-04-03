@@ -4,7 +4,10 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "SETUP.md"
+      "SETUP.md",
+      "node_modules/**",
+      "package.json",
+      "package-lock.json"
     ]
   }
 }
