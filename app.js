@@ -583,20 +583,25 @@ function App(){
   const [syncStatus,setSyncStatus]=useState("ok"); // ok | saving | error
   const saveTimer=useRef(null);
   const unsubSnap=useRef(null);
-  const notesActive=useRef(false);
+  const userRef=useRef(null);
+
+  // Keep userRef in sync
+  useEffect(() => { userRef.current = user; }, [user]);
 
   // --- Firestore doc ref ---
-  function userDocRef(){
-    return fbDb.collection("execcomms-users").doc(user.uid);
+  function userDocRef(u){
+    const uid = u ? u.uid : (userRef.current ? userRef.current.uid : null);
+    return fbDb.collection("execcomms-users").doc(uid);
   }
 
   // --- Save to Firestore (debounced) ---
-  const saveToFirestore = useCallback(async (d) => {
-    if (!user || user.demo) { console.log('[SYNC] skip: no user or demo'); return; }
-    console.log('[SYNC] saving to Firestore…', user.uid);
+  async function saveToFirestore(d) {
+    const u = userRef.current;
+    if (!u || u.demo) { console.log('[SYNC] skip: no user or demo'); return; }
+    console.log('[SYNC] saving to Firestore…', u.uid);
     setSyncStatus('saving');
     try {
-      await userDocRef().set({
+      await userDocRef(u).set({
         sessionData: d,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
@@ -606,14 +611,15 @@ function App(){
       console.error('[SYNC] save FAILED:', e);
       setSyncStatus('error');
     }
-  }, [user]);
+  }
 
   function persistData(d) {
     setData(d);
-    console.log('[SYNC] persistData called, user:', user ? (user.demo ? 'demo' : user.uid) : 'null');
-    if (user && user.demo) {
+    const u = userRef.current;
+    console.log('[SYNC] persistData called, user:', u ? (u.demo ? 'demo' : u.uid) : 'null');
+    if (u && u.demo) {
       sv(STORE, d);
-    } else if (user) {
+    } else if (u) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => saveToFirestore(d), 800);
     }
@@ -622,8 +628,10 @@ function App(){
   // --- Listen to Firestore (real-time sync) ---
   function listenToFirestore() {
     if (unsubSnap.current) unsubSnap.current();
-    console.log('[SYNC] listening to Firestore for', user.uid);
-    unsubSnap.current = userDocRef().onSnapshot((snap) => {
+    const u = userRef.current;
+    if (!u || u.demo) return;
+    console.log('[SYNC] listening to Firestore for', u.uid);
+    unsubSnap.current = userDocRef(u).onSnapshot((snap) => {
       console.log('[SYNC] snapshot received, exists:', snap.exists);
       if (snap.exists) {
         const d = snap.data();
