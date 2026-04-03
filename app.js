@@ -250,7 +250,7 @@ function CurrentTab({data,setData}){
         <div style={{marginBottom:20}}>
           <label style={{display:"block",fontSize:"calc(var(--fs)*0.7)",color:"var(--soft)",marginBottom:8}}>Date</label>
           <input type="date" value={sd.date||""} onChange={e=>upd("date",e.target.value)} style={{
-            width:"100%",padding:"10px 12px",fontSize:"max(16px, calc(var(--fs)*0.8))",fontFamily:"var(--mono)",
+            width:"100%",maxWidth:"100%",boxSizing:"border-box",padding:"10px 12px",fontSize:"max(16px, calc(var(--fs)*0.8))",fontFamily:"var(--mono)",
             background:"transparent",border:"1px solid var(--rule)",color:"var(--text)",borderRadius:2,
           }}/>
         </div>
@@ -463,7 +463,7 @@ function Detail({session:s,data,setData,onBack}){
           </div>
           <div style={{marginBottom:20}}>
             <label style={{display:"block",fontSize:"calc(var(--fs)*0.7)",color:"var(--soft)",marginBottom:8}}>Date</label>
-            <input type="date" value={sd.date||""} onChange={e=>upd("date",e.target.value)} style={{width:"100%",padding:"10px 12px",fontSize:"max(16px, calc(var(--fs)*0.8))",fontFamily:"var(--mono)",background:"transparent",border:"1px solid var(--rule)",color:"var(--text)",borderRadius:2}}/>
+            <input type="date" value={sd.date||""} onChange={e=>upd("date",e.target.value)} style={{width:"100%",maxWidth:"100%",boxSizing:"border-box",padding:"10px 12px",fontSize:"max(16px, calc(var(--fs)*0.8))",fontFamily:"var(--mono)",background:"transparent",border:"1px solid var(--rule)",color:"var(--text)",borderRadius:2}}/>
           </div>
           <div>
             <label style={{display:"block",fontSize:"calc(var(--fs)*0.7)",color:"var(--soft)",marginBottom:8}}>Notes</label>
