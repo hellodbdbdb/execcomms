@@ -698,6 +698,12 @@ function App(){
     setSyncStatus('ok');
   }
 
+  // --- Apply theme to html element so body/html bg works in dark mode ---
+  const theme=st.mode||"light";
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   // --- Loading screen ---
   if(loading) return(
     <div style={{minHeight:"100dvh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -705,12 +711,6 @@ function App(){
       <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase"}}>Loading…</div>
     </div>
   );
-
-  // --- Apply theme to html element so body/html bg works in dark mode ---
-  const theme=st.mode||"light";
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
 
   // --- Login screen ---
   if(!user) return <Login onGoogle={handleGoogle} onDemo={handleDemo}/>;
