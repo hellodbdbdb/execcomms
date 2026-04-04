@@ -72,7 +72,7 @@ const CSS = `
   --c-green-bg: rgba(92,201,122,0.1);
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--bg); color:var(--text); font-family:var(--mono); font-size:var(--fs); -webkit-font-smoothing:antialiased; }
+html, body { background:var(--bg); color:var(--text); font-family:var(--mono); font-size:var(--fs); -webkit-font-smoothing:antialiased; }
 `;
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -700,9 +700,9 @@ function App(){
 
   // --- Loading screen ---
   if(loading) return(
-    <div style={{minHeight:"100dvh",background:"#F0EDE6",display:"flex",alignItems:"center",justifyContent:"center"}}>
+    <div style={{minHeight:"100dvh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <style>{CSS}</style>
-      <div style={{fontFamily:"var(--mono)",fontSize:12,color:"#6B6960",letterSpacing:"0.08em",textTransform:"uppercase"}}>Loading…</div>
+      <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--muted)",letterSpacing:"0.08em",textTransform:"uppercase"}}>Loading…</div>
     </div>
   );
 
