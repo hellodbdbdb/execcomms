@@ -706,10 +706,14 @@ function App(){
     </div>
   );
 
+  // --- Apply theme to html element so body/html bg works in dark mode ---
+  const theme=st.mode||"light";
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   // --- Login screen ---
   if(!user) return <Login onGoogle={handleGoogle} onDemo={handleDemo}/>;
-
-  const theme=st.mode||"light";
 
   if(sel) return(
     <div data-theme={theme}>
